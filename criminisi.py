@@ -1,8 +1,6 @@
 #June 28nd, 2021
 #Program MacGregor Winegard
-#This program takes crim3.py and makes it so that the size of the comparison patch is different
-#than the fill in patch
-
+#Implementation of the algorithm proposed by Criminisi et al. (2004)
 
 import cv2 as cv
 import numpy as np
@@ -11,22 +9,17 @@ import time
 
 
 
-class TVA: #Loki Reference
-    #Homemade version of matlab tic and toc functions
-    def tic():   
-        global startTime_for_tictoc
+class TVA: #TIME VARIANCE AUTHORITY
+    #Matlab tic and toc functions, inspired by Stack Overflow
+    def tic():
         startTime_for_tictoc = time.time()
         print("Timer started at: " + time.strftime("%H:%M:%S"))
+        return startTime_for_tictoc
 
-    def toc():
-        if 'startTime_for_tictoc' in globals():
-            elapsed_time = f"Time: {(time.time() - startTime_for_tictoc)//60} minutes, " + \
-            f"{((time.time() - startTime_for_tictoc)%60):5.1f} seconds.\n"
-            print (elapsed_time)
-            return elapsed_time  
-        else:
-            print ("Toc: start time not set")
-            return None
+    def toc(tic_time):
+        elapsed_time = f"{(time.time() - tic_time)//60} minutes, " + \
+        f"{((time.time() - tic_time)%60):5.1f} seconds.\n"
+        return elapsed_time  
 
     
 
@@ -131,7 +124,7 @@ class inpainting:
         if np.setdiff1d(mask, [0,1]).size:
             raise Exception("Issue with mask!")
         
-        TVA.tic()
+        start_time = TVA.tic()
         
         working_image = np.copy(original_image)
         confidence = np.array(np.logical_not(mask), dtype = float)
@@ -142,7 +135,7 @@ class inpainting:
         
             iter_count +=1
             print("\nStarting iteration " + str(iter_count))
-            cv.imshow('live progress', working_image)
+            cv.imshow('Working image', working_image)
             cv.waitKey(5)
             
             boundary_list = inpainting.get_boundary(to_fill)
@@ -169,5 +162,5 @@ class inpainting:
             working_image[target_patch[0][target_patch_known], target_patch[1][target_patch_known]] = \
                 working_image[source_patch[0][target_patch_known], source_patch[1][target_patch_known]]
             
-        TVA.toc()
+        print("Time: " + TVA.toc(start_time))
         return working_image
