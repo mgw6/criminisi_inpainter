@@ -1,12 +1,11 @@
-#June 28nd, 2021
-#Program MacGregor Winegard
+#August 10, 2021
+#Program by MacGregor Winegard
 #Implementation of the algorithm proposed by Criminisi et al. (2004)
 
 import cv2 as cv
 import numpy as np
 from scipy.signal import convolve2d
 import time
-
 
 
 class TVA: #TIME VARIANCE AUTHORITY
@@ -19,16 +18,14 @@ class TVA: #TIME VARIANCE AUTHORITY
     def toc(tic_time):
         elapsed_time = f"{(time.time() - tic_time)//60} minutes, " + \
         f"{((time.time() - tic_time)%60):5.1f} seconds.\n"
-        return elapsed_time  
-
-    
+        return elapsed_time   
 
 class inpainting: 
     def get_patch_slice(point, psz): #TODO: account for edge cases
         half_psz = psz//2
         return (slice(point[0] - half_psz, point[0] + half_psz+1),
             slice(point[1] - half_psz, point[1] + half_psz+1))
-        
+    
     def get_patch_list(point, psz): #TODO: account for edge cases
         halfPatch = psz//2 
         rows = np.arange( (point[0] - halfPatch), (point[0] + halfPatch+1))
@@ -39,9 +36,9 @@ class inpainting:
         return [rows, cols]
     
     def get_boundary(mask):
-        laplacian = [ [1,1,1],[1,-8,1],[1,1,1] ] #Laplacian Matrix
+        laplacian = [[1,1,1], [1,-8,1], [1,1,1]] #Laplacian Matrix
         double_mask = np.double(mask)
-        conv2dHolder = np.rot90(convolve2d(np.rot90(double_mask, 2), np.rot90(laplacian, 2), mode='same'), 2) # this is right
+        conv2dHolder = np.rot90(convolve2d(np.rot90(double_mask, 2), np.rot90(laplacian, 2), mode='same'), 2) 
         
         return list(map(tuple, np.argwhere(conv2dHolder>0)))
         
@@ -54,19 +51,15 @@ class inpainting:
             norm_list.append(
                 abs(Nx[point]) + abs(Ny[point])
             )
-        norm_list = np.array(norm_list)
         
         [Ix, Iy, Iz] = np.gradient(image)
-        Ix = np.sum(np.absolute(Ix), axis = 2)
-        Iy = np.sum(np.absolute(Iy), axis = 2)
         gradient_list = []
         for point in boundary:
-            gradient_list.append(
-                abs(Ix[point]) + abs(Iy[point])
+            gradient_list.append(  
+                sum(abs(Ix[point]) + abs(Iy[point]))
             )
         
-        gradient_list = np.array(gradient_list)
-        return norm_list * gradient_list
+        return np.array(norm_list) * np.array(gradient_list) + .001
         
     def get_confidence(confidence, boundary, psz):
         confidence_list = []
@@ -122,13 +115,16 @@ class inpainting:
         if not np.any(mask):
             raise Exception("Mask invalid")  
         if np.setdiff1d(mask, [0,1]).size:
-            raise Exception("Issue with mask!")
+            raise Exception("Mask should only have 0's and 1's.")
+        if original_image.shape[:2] != mask.shape:
+            raise Exception("Mask and image should be the same shape.")
         
         start_time = TVA.tic()
         
         working_image = np.copy(original_image)
-        confidence = np.array(np.logical_not(mask), dtype = float)
         to_fill = ~np.logical_not(mask)
+        confidence = np.array(~to_fill, dtype = float)
+        
         
         iter_count = 0
         while True in to_fill:
@@ -142,8 +138,7 @@ class inpainting:
             
             data_list = inpainting.get_data(working_image, mask, boundary_list, psz)
             confidence_list = inpainting.get_confidence(confidence, boundary_list, psz)
-            priorities = confidence_list*data_list
-            highest_priority = np.argmax(priorities)
+            highest_priority = np.argmax(confidence_list*data_list)
             
             target_pixel = boundary_list[highest_priority]
             target_patch = inpainting.get_patch_list(target_pixel, psz)
