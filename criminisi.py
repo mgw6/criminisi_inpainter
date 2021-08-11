@@ -4,8 +4,13 @@
 
 import cv2 as cv
 import numpy as np
-from scipy.signal import convolve2d
+from scipy.signal import convolve2d 
+from scipy.ndimage.filters import convolve
+from skimage.color import rgb2grey
+#import scipy.ndimage as img
 import time
+
+np.set_printoptions(precision=8)
 
 
 class TVA: #TIME VARIANCE AUTHORITY
@@ -32,42 +37,97 @@ class inpainting:
         cols = np.transpose(np.arange( (point[1] - halfPatch), (point[1] + halfPatch+1)))
         rows = (rows * np.ones((psz, psz))).astype(int)
         cols = (np.transpose(cols *np.ones((psz, psz)))).astype(int) 
-        
         return [rows, cols]
     
     def get_boundary(mask):
         laplacian = [[1,1,1], [1,-8,1], [1,1,1]] #Laplacian Matrix
         double_mask = np.double(mask)
         conv2dHolder = np.rot90(convolve2d(np.rot90(double_mask, 2), np.rot90(laplacian, 2), mode='same'), 2) 
-        
         return list(map(tuple, np.argwhere(conv2dHolder>0)))
-        
+    
     def get_data(image, mask, boundary, psz):
-        
         #norm of the mask
-        [Nx, Ny] = np.gradient(mask)
+        row_sobel = np.array([[.25, 0, -.25], [.5, 0, -.5], [.25, 0, -.25]])
+        col_sobel = np.array([[-.25, -.5, -.25], [0, 0, 0], [.25, .5, .25]])
+        norm_mask = np.array(mask, dtype = float)
+        
+        normal = np.array([
+            convolve(norm_mask, row_sobel), 
+            convolve(norm_mask, col_sobel)
+        ])
+        normal_bottom = np.sqrt(
+            normal[0]**2 + normal[1]**2
+        )
+        normal_bottom[normal_bottom==0] = 1
+        
         norm_list = []
         for point in boundary:
-            norm_list.append(
-                abs(Nx[point]) + abs(Ny[point])
-            )
+            norm_list.append([
+                (normal[0][point]/normal_bottom[point]),
+                (normal[1][point]/normal_bottom[point]), 
+            ])
+        #Up to here is correct
         
+        """
+        #isophotes of image
         [Ix, Iy, Iz] = np.gradient(image)
+        Ix = np.sum(abs(Ix), axis = 2)
+        Iy = np.sum(abs(Iy), axis = 2)
         gradient_list = []
         for point in boundary:
-            gradient_list.append(  
-                sum(abs(Ix[point]) + abs(Iy[point]))
+            patch = inpainting.get_patch_slice(point, psz)
+            gradient_list.append([  
+                np.max(abs(Ix[patch])), 
+                np.max(abs(Iy[patch]))
+            ])
+        """
+        
+        grey_image = np.array(cv.cvtColor(image, cv.COLOR_BGR2GRAY))
+        #grey_image = rgb2grey(image)
+        grey_image[np.array(mask)] = None
+        
+        
+        gradient = np.nan_to_num(np.array(np.gradient(grey_image)))
+        gradient_val = np.sqrt(gradient[0]**2 + gradient[1]**2)
+        max_gradient = np.zeros([200, 200, 2])
+        
+        
+        
+        gradient_list = []
+        for point in boundary:
+            patch = inpainting.get_patch_slice(point, psz)
+            patch_y_gradient = gradient[0][patch]
+            patch_x_gradient = gradient[1][patch]
+            patch_gradient_val = gradient_val[patch]
+
+            patch_max_pos = np.unravel_index(
+                patch_gradient_val.argmax(),
+                patch_gradient_val.shape
             )
+
+            gradient_list.append([  
+                patch_x_gradient[patch_max_pos],
+                patch_y_gradient[patch_max_pos]
+            ])
         
-        return np.array(norm_list) * np.array(gradient_list) + .001
+        #print(np.unique(gradient_list))
+        #exit()
         
+        
+        data = (np.array(gradient_list)*np.array(norm_list))**2
+        
+        return np.sqrt(np.sum(data, axis = 1)) + .001
+    
+    
+    
+    
     def get_confidence(confidence, boundary, psz):
         confidence_list = []
         for point in boundary:
             confidence_list.append(
                 np.sum(confidence[inpainting.get_patch_slice(point, psz)])
             )
-        return np.array(confidence_list) + .001
+        return np.array(confidence_list) #+ .001
     
     
     def bestexemplar(working_image, to_fill, target_pixel, psz):
@@ -136,9 +196,11 @@ class inpainting:
             
             boundary_list = inpainting.get_boundary(to_fill)
             
-            data_list = inpainting.get_data(working_image, mask, boundary_list, psz)
+            data_list = inpainting.get_data(working_image, to_fill, boundary_list, psz)
             confidence_list = inpainting.get_confidence(confidence, boundary_list, psz)
+            #print(np.unique(data_list))
             highest_priority = np.argmax(confidence_list*data_list)
+            #exit()
             
             target_pixel = boundary_list[highest_priority]
             target_patch = inpainting.get_patch_list(target_pixel, psz)
