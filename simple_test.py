@@ -5,7 +5,6 @@ import cv2 as cv
 import numpy as np
 import criminisi.criminisi as criminisi
 from imageio import mimsave
-from skimage.io import imread, imsave, imshow, show
 
 
 orig_img = cv.imread(cv.samples.findFile('images/simple_sample.png'))
