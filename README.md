@@ -3,6 +3,6 @@ Implementation of the inpainting algorithm proposed by [Criminisi et al. (2004)]
 
 Initially this started off as translating [this code](https://github.com/ikuwow/inpainting_criminisi2004) from Matlab to Python. 
 However after working with this code it became apparent that it is incorrect, although it still was very helpful.
-
 Once it became apprarent that that code was inccorrect, [this other code](https://github.com/ikuwow/inpainting_criminisi2004) 
 was referenced to complete my implementation of Criminisi.
+
