@@ -43,8 +43,8 @@ class inpainting:
     
     def get_data(image, mask, boundary, psz):
         #norm of the mask
-        row_sobel = np.array([[.25, 0, -.25], [.5, 0, -.5], [.25, 0, -.25]])
-        col_sobel = np.array([[-.25, -.5, -.25], [0, 0, 0], [.25, .5, .25]])
+        row_sobel = np.array([[1, 0, -1], [1, 0, -2], [1, 0, -1]])
+        col_sobel = np.array([[-1, -2, -1], [0, 0, 0], [1, 2, 1]])
         norm_mask = np.array(mask, dtype = float)
         
         normal = np.array([
@@ -71,7 +71,6 @@ class inpainting:
         
         Ix, Iy = np.nan_to_num(np.array(np.gradient(flat_image)))
         total_gradient = np.sqrt(Ix**2 + Iy**2)
-        #TODO: Clean this
         gradient_list = []
         for point in boundary:
             patch = inpainting.get_patch_slice(point, psz)
