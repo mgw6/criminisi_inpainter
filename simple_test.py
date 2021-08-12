@@ -6,7 +6,7 @@ import numpy as np
 import criminisi.criminisi as criminisi
 
 
-orig_img = cv.imread(cv.samples.findFile('simple_sample.png'))
+orig_img = cv.imread(cv.samples.findFile('images/simple_sample.png'))
 
 mask = np.zeros(orig_img.shape, dtype = int)
 mask[np.where(orig_img == 255)] = 1
