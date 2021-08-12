@@ -132,7 +132,22 @@ class Inpainting:
         movie_frame[...,0] = np.copy(movie_frame[...,2])
         movie_frame[...,2] = np.copy(temp)
         return np.copy(movie_frame)
+    
+    def initilialize_iso(original_image, to_fill):
+        iso_image = np.copy(original_image).astype(float)
+        iso_image[to_fill] = None
+        if iso_image.ndim == 3:
+            Ix, Iy, Iz= np.nan_to_num(np.array(np.gradient(iso_image)))
+            Ix = np.sum(Ix, axis = 2)
+            Iy = np.sum(Iy, axis = 2)
+        elif iso_image.ndim == 2:
+            Ix, Iy = np.nan_to_num(np.array(np.gradient(iso_image)))
+        else: #this should not happen
+            raise Exception("If you're reading this you really goofed up.")
+        total_gradient = np.sqrt(Ix**2 + Iy**2)
+        return Ix, Iy, total_gradient
         
+    
     
     """ Copied from the matlab code:
     % Inputs: 
@@ -162,17 +177,7 @@ class Inpainting:
         confidence = np.array(~to_fill, dtype = float)
         
         # Initialize isophote values
-        iso_image = np.copy(original_image).astype(float)
-        iso_image[to_fill] = None
-        if iso_image.ndim == 3:
-            Ix, Iy, Iz= np.nan_to_num(np.array(np.gradient(iso_image)))
-            Ix = np.sum(Ix, axis = 2)
-            Iy = np.sum(Iy, axis = 2)
-        elif iso_image.ndim == 2:
-            Ix, Iy = np.nan_to_num(np.array(np.gradient(iso_image)))
-        else: #this should not happen
-            raise Exception("If you're reading this you really goofed up.")
-        total_gradient = np.sqrt(Ix**2 + Iy**2)
+        Ix, Iy, total_gradient = Inpainting.initilialize_iso(working_image, to_fill)
         
         if return_movie:
             movie = []
@@ -186,13 +191,11 @@ class Inpainting:
             cv.imshow('Working image', working_image)
             cv.waitKey(5)
             
-            
             boundary_list = Inpainting.get_boundary(to_fill)
             
             data_list = Inpainting.get_data(Ix, Iy, total_gradient, to_fill, boundary_list, psz)
             confidence_list = Inpainting.get_confidence(confidence, boundary_list, psz)
             highest_priority = np.argmax(confidence_list*data_list)
-            
             
             target_pixel = boundary_list[highest_priority]
             target_patch = Inpainting.get_patch_list(target_pixel, psz)
