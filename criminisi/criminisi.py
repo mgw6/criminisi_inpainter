@@ -21,7 +21,7 @@ class TVA: #TIME VARIANCE AUTHORITY
         f"{((time.time() - tic_time)%60):5.1f} seconds."
         return elapsed_time   
 
-class inpainting: 
+class Inpainting: 
     def get_patch_slice(point, psz): #TODO: account for edge cases
         half_psz = psz//2
         return (slice(point[0] - half_psz, point[0] + half_psz+1),
@@ -66,7 +66,7 @@ class inpainting:
         
         gradient_list = []
         for point in boundary:
-            patch = inpainting.get_patch_slice(point, psz)
+            patch = Inpainting.get_patch_slice(point, psz)
             row_gradient = Ix[patch]
             col_gradient = Iy[patch]
             patch_total_gradient = total_gradient[patch]
@@ -90,7 +90,7 @@ class inpainting:
         confidence_list = []
         for point in boundary:
             confidence_list.append(
-                np.sum(confidence[inpainting.get_patch_slice(point, psz)])
+                np.sum(confidence[Inpainting.get_patch_slice(point, psz)])
             )
         return np.array(confidence_list) 
     
@@ -103,13 +103,13 @@ class inpainting:
         
         half_psz = psz//2
         
-        target_patch = inpainting.get_patch_slice(target_pixel, psz)
+        target_patch = Inpainting.get_patch_slice(target_pixel, psz)
         target_patch_data = working_image[target_patch]
         target_patch_known = source_region[target_patch]
         
         for row in range(half_psz, working_image.shape[0]-half_psz-1):
             for col in range(half_psz, working_image.shape[1]-half_psz-1):
-                source_patch = inpainting.get_patch_slice((row,col), psz)
+                source_patch = Inpainting.get_patch_slice((row,col), psz)
                 if not source_region[source_patch].all():
                     continue
                 
@@ -119,7 +119,7 @@ class inpainting:
                 if(SSD < bestErr):
                         bestErr = SSD
                         best = (row, col)
-        return inpainting.get_patch_list(best, psz)
+        return Inpainting.get_patch_list(best, psz)
 
     
     """ Copied from the matlab code:
@@ -131,7 +131,7 @@ class inpainting:
     % Outputs:
     %   - working_image   The inpainted image; an MxNx3 matrix of doubles. 
     """   
-    def inpainting(original_image, mask, psz):
+    def inpaint(original_image, mask, psz, return_movie = False):
         if psz % 2 == 0:
             raise Exception("Patch size psz must be odd")
         if not np.any(original_image):
@@ -162,6 +162,8 @@ class inpainting:
             raise Exception("If you're reading this you really goofed up.")
         total_gradient = np.sqrt(Ix**2 + Iy**2)
         
+        if return_movie:
+            movie = []
         
         iter_count = 0
         while True in to_fill:
@@ -170,19 +172,25 @@ class inpainting:
             print("\nStarting iteration " + str(iter_count))
             cv.imshow('Working image', working_image)
             cv.waitKey(5)
+            if return_movie:
+                movie_frame = np.copy(working_image)
+                temp = np.copy(movie_frame[...,0])
+                movie_frame[...,0] = np.copy(movie_frame[...,2])
+                movie_frame[...,2] = np.copy(temp)
+                movie.append(np.copy(movie_frame))
             
-            boundary_list = inpainting.get_boundary(to_fill)
+            boundary_list = Inpainting.get_boundary(to_fill)
             
-            data_list = inpainting.get_data(Ix, Iy, total_gradient, to_fill, boundary_list, psz)
-            confidence_list = inpainting.get_confidence(confidence, boundary_list, psz)
+            data_list = Inpainting.get_data(Ix, Iy, total_gradient, to_fill, boundary_list, psz)
+            confidence_list = Inpainting.get_confidence(confidence, boundary_list, psz)
             highest_priority = np.argmax(confidence_list*data_list)
             
             
             target_pixel = boundary_list[highest_priority]
-            target_patch = inpainting.get_patch_list(target_pixel, psz)
+            target_patch = Inpainting.get_patch_list(target_pixel, psz)
             target_patch_known = to_fill[tuple(target_patch)]
             
-            source_patch = inpainting.bestexemplar(working_image, to_fill, target_pixel, psz)
+            source_patch = Inpainting.bestexemplar(working_image, to_fill, target_pixel, psz)
             
             #update fill region
             to_fill[tuple(target_patch)] = False
@@ -202,4 +210,12 @@ class inpainting:
                 working_image[source_patch[0][target_patch_known], source_patch[1][target_patch_known]]
             
         print("Time: " + TVA.toc(start_time))
-        return working_image
+        if return_movie:
+            movie_frame = np.copy(working_image)
+            temp = np.copy(movie_frame[...,0])
+            movie_frame[...,0] = np.copy(movie_frame[...,2])
+            movie_frame[...,2] = np.copy(temp)
+            movie.append(np.copy(movie_frame))
+            return working_image, movie
+        else:
+            return working_image
