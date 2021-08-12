@@ -41,7 +41,7 @@ class inpainting:
         conv2dHolder = np.rot90(convolve2d(np.rot90(double_mask, 2), np.rot90(laplacian, 2), mode='same'), 2) 
         return list(map(tuple, np.argwhere(conv2dHolder>0)))
     
-    def get_data(image, mask, boundary, psz):
+    def get_data(Ix, Iy, total_gradient, mask, boundary, psz):
         #norm of the mask
         row_sobel = np.array([[1, 0, -1], [1, 0, -2], [1, 0, -1]])
         col_sobel = np.array([[-1, -2, -1], [0, 0, 0], [1, 2, 1]])
@@ -63,18 +63,7 @@ class inpainting:
                 (normal[1][point]/normal_bottom[point]), 
             ])
         
-        iso_image = np.copy(image).astype(float)
-        iso_image[mask] = None
         
-        if iso_image.ndim == 3:
-            Ix, Iy, Iz= np.nan_to_num(np.array(np.gradient(iso_image)))
-            Ix = np.sum(Ix, axis = 2)
-            Iy = np.sum(Iy, axis = 2)
-        elif iso_image.ndim == 2:
-            Ix, Iy = np.nan_to_num(np.array(np.gradient(iso_image)))
-        else: #this should not happen
-            raise Exception("If you're reading this you really goofed up.")
-        total_gradient = np.sqrt(Ix**2 + Iy**2)
         gradient_list = []
         for point in boundary:
             patch = inpainting.get_patch_slice(point, psz)
@@ -163,6 +152,19 @@ class inpainting:
         to_fill = ~np.logical_not(mask)
         confidence = np.array(~to_fill, dtype = float)
         
+        # Initialize isophote values
+        iso_image = np.copy(original_image).astype(float)
+        iso_image[to_fill] = None
+        if iso_image.ndim == 3:
+            Ix, Iy, Iz= np.nan_to_num(np.array(np.gradient(iso_image)))
+            Ix = np.sum(Ix, axis = 2)
+            Iy = np.sum(Iy, axis = 2)
+        elif iso_image.ndim == 2:
+            Ix, Iy = np.nan_to_num(np.array(np.gradient(iso_image)))
+        else: #this should not happen
+            raise Exception("If you're reading this you really goofed up.")
+        total_gradient = np.sqrt(Ix**2 + Iy**2)
+        
         
         iter_count = 0
         while True in to_fill:
@@ -174,7 +176,7 @@ class inpainting:
             
             boundary_list = inpainting.get_boundary(to_fill)
             
-            data_list = inpainting.get_data(working_image, to_fill, boundary_list, psz)
+            data_list = inpainting.get_data(Ix, Iy, total_gradient, to_fill, boundary_list, psz)
             confidence_list = inpainting.get_confidence(confidence, boundary_list, psz)
             #print(np.unique(data_list))
             highest_priority = np.argmax(confidence_list*data_list)
@@ -189,9 +191,15 @@ class inpainting:
             #update fill region
             to_fill[tuple(target_patch)] = False
             
-            #Update confidences
+            #Propagate confidence & isophote values
             confidence[target_patch[0][target_patch_known], target_patch[1][target_patch_known]]  = \
                 confidence[target_pixel]
+            Ix[target_patch[0][target_patch_known], target_patch[1][target_patch_known]] = \
+                Ix[source_patch[0][target_patch_known], source_patch[1][target_patch_known]]
+            Iy[target_patch[0][target_patch_known], target_patch[1][target_patch_known]] = \
+                Iy[source_patch[0][target_patch_known], source_patch[1][target_patch_known]]
+            total_gradient[target_patch[0][target_patch_known], target_patch[1][target_patch_known]] = \
+                total_gradient[source_patch[0][target_patch_known], source_patch[1][target_patch_known]]
             
             #Copy image data from source to target  
             working_image[target_patch[0][target_patch_known], target_patch[1][target_patch_known]] = \
