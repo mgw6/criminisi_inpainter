@@ -63,13 +63,18 @@ class inpainting:
                 (normal[1][point]/normal_bottom[point]), 
             ])
         
-        flat_image = np.copy(image).astype(float)
-        if flat_image.ndim == 3:
-            flat_image = np.sum(flat_image, axis = 2)
-        flat_image[mask] = None
+        working_image = np.copy(image).astype(float)
+        working_image[mask] = None
         
+        if working_image.ndim == 3:
+            Ix, Iy, Iz= np.nan_to_num(np.array(np.gradient(working_image)))
+            Ix = np.sum(Ix, axis = 2)
+            Iy = np.sum(Iy, axis = 2)
+        elif working_image.ndim == 2:
+            Ix, Iy = np.nan_to_num(np.array(np.gradient(working_image)))
+        else: #this should not happen
+            raise Exception("If you're reading this you really goofed up.")
         
-        Ix, Iy = np.nan_to_num(np.array(np.gradient(flat_image)))
         total_gradient = np.sqrt(Ix**2 + Iy**2)
         gradient_list = []
         for point in boundary:
@@ -82,6 +87,7 @@ class inpainting:
                 patch_total_gradient.argmax(),
                 patch_total_gradient.shape
             )
+            
 
             gradient_list.append([  
                 row_gradient[max_gradient],
