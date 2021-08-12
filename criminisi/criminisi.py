@@ -121,6 +121,18 @@ class Inpainting:
                         best = (row, col)
         return Inpainting.get_patch_list(best, psz)
 
+    """
+    RB in RGB is flipped for openCV vs other packages. 
+    I like openCV's imshow bc its more lightweight than scipy's
+    so I just flipped them in the movie.
+    """
+    def flip_RB(image):
+        movie_frame = np.copy(image)
+        temp = np.copy(movie_frame[...,0])
+        movie_frame[...,0] = np.copy(movie_frame[...,2])
+        movie_frame[...,2] = np.copy(temp)
+        return np.copy(movie_frame)
+        
     
     """ Copied from the matlab code:
     % Inputs: 
@@ -164,6 +176,7 @@ class Inpainting:
         
         if return_movie:
             movie = []
+            movie.append(Inpainting.flip_RB(np.copy(working_image)))
         
         iter_count = 0
         while True in to_fill:
@@ -172,12 +185,7 @@ class Inpainting:
             print("\nStarting iteration " + str(iter_count))
             cv.imshow('Working image', working_image)
             cv.waitKey(5)
-            if return_movie:
-                movie_frame = np.copy(working_image)
-                temp = np.copy(movie_frame[...,0])
-                movie_frame[...,0] = np.copy(movie_frame[...,2])
-                movie_frame[...,2] = np.copy(temp)
-                movie.append(np.copy(movie_frame))
+            
             
             boundary_list = Inpainting.get_boundary(to_fill)
             
@@ -209,13 +217,10 @@ class Inpainting:
             working_image[target_patch[0][target_patch_known], target_patch[1][target_patch_known]] = \
                 working_image[source_patch[0][target_patch_known], source_patch[1][target_patch_known]]
             
+            if return_movie:
+                movie.append(Inpainting.flip_RB(np.copy(working_image)))
         print("Time: " + TVA.toc(start_time))
         if return_movie:
-            movie_frame = np.copy(working_image)
-            temp = np.copy(movie_frame[...,0])
-            movie_frame[...,0] = np.copy(movie_frame[...,2])
-            movie_frame[...,2] = np.copy(temp)
-            movie.append(np.copy(movie_frame))
             return working_image, movie
         else:
             return working_image
