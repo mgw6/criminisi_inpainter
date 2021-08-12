@@ -6,11 +6,7 @@ import cv2 as cv
 import numpy as np
 from scipy.signal import convolve2d 
 from scipy.ndimage.filters import convolve
-from skimage.color import rgb2grey
-#import scipy.ndimage as img
 import time
-
-np.set_printoptions(precision=8)
 
 
 class TVA: #TIME VARIANCE AUTHORITY
@@ -22,7 +18,7 @@ class TVA: #TIME VARIANCE AUTHORITY
 
     def toc(tic_time):
         elapsed_time = f"{(time.time() - tic_time)//60} minutes, " + \
-        f"{((time.time() - tic_time)%60):5.1f} seconds.\n"
+        f"{((time.time() - tic_time)%60):5.1f} seconds."
         return elapsed_time   
 
 class inpainting: 
@@ -66,56 +62,34 @@ class inpainting:
                 (normal[0][point]/normal_bottom[point]),
                 (normal[1][point]/normal_bottom[point]), 
             ])
-        #Up to here is correct
         
-        """
-        #isophotes of image
-        [Ix, Iy, Iz] = np.gradient(image)
-        Ix = np.sum(abs(Ix), axis = 2)
-        Iy = np.sum(abs(Iy), axis = 2)
+        flat_image = np.copy(image).astype(float)
+        if flat_image.ndim == 3:
+            flat_image = np.sum(flat_image, axis = 2)
+        flat_image[mask] = None
+        
+        
+        Ix, Iy = np.nan_to_num(np.array(np.gradient(flat_image)))
+        total_gradient = np.sqrt(Ix**2 + Iy**2)
+        #TODO: Clean this
         gradient_list = []
         for point in boundary:
             patch = inpainting.get_patch_slice(point, psz)
-            gradient_list.append([  
-                np.max(abs(Ix[patch])), 
-                np.max(abs(Iy[patch]))
-            ])
-        """
-        
-        grey_image = np.array(cv.cvtColor(image, cv.COLOR_BGR2GRAY))
-        #grey_image = rgb2grey(image)
-        grey_image[np.array(mask)] = None
-        
-        
-        gradient = np.nan_to_num(np.array(np.gradient(grey_image)))
-        gradient_val = np.sqrt(gradient[0]**2 + gradient[1]**2)
-        max_gradient = np.zeros([200, 200, 2])
-        
-        
-        
-        gradient_list = []
-        for point in boundary:
-            patch = inpainting.get_patch_slice(point, psz)
-            patch_y_gradient = gradient[0][patch]
-            patch_x_gradient = gradient[1][patch]
-            patch_gradient_val = gradient_val[patch]
+            row_gradient = Ix[patch]
+            col_gradient = Iy[patch]
+            patch_total_gradient = total_gradient[patch]
 
-            patch_max_pos = np.unravel_index(
-                patch_gradient_val.argmax(),
-                patch_gradient_val.shape
+            max_gradient = np.unravel_index(
+                patch_total_gradient.argmax(),
+                patch_total_gradient.shape
             )
 
             gradient_list.append([  
-                patch_x_gradient[patch_max_pos],
-                patch_y_gradient[patch_max_pos]
+                row_gradient[max_gradient],
+                col_gradient[max_gradient]
             ])
         
-        #print(np.unique(gradient_list))
-        #exit()
-        
-        
         data = (np.array(gradient_list)*np.array(norm_list))**2
-        
         return np.sqrt(np.sum(data, axis = 1)) + .001
     
     
@@ -127,7 +101,7 @@ class inpainting:
             confidence_list.append(
                 np.sum(confidence[inpainting.get_patch_slice(point, psz)])
             )
-        return np.array(confidence_list) #+ .001
+        return np.array(confidence_list) 
     
     
     def bestexemplar(working_image, to_fill, target_pixel, psz):
