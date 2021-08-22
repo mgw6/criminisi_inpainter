@@ -69,18 +69,28 @@ class Inpainting:
             patch = Inpainting.get_patch_slice(point, psz)
             row_gradient = Ix[patch]
             col_gradient = Iy[patch]
+            
+            gradient_list.append([  
+                np.sum(row_gradient),
+                np.sum(col_gradient)
+            ])
+            
+    
+            """ Alternate approach
             patch_total_gradient = total_gradient[patch]
-
+            
             max_gradient = np.unravel_index(
                 patch_total_gradient.argmax(),
                 patch_total_gradient.shape
             )
-            
 
             gradient_list.append([  
                 row_gradient[max_gradient],
                 col_gradient[max_gradient]
             ])
+            """
+            
+            
         
         data = (np.array(gradient_list)*np.array(norm_list))**2
         return np.sqrt(np.sum(data, axis = 1)) + .001
