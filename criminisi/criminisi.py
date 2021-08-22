@@ -148,8 +148,8 @@ class Inpainting:
         iso_image[to_fill] = None
         if iso_image.ndim == 3:
             Ix, Iy, Iz= np.nan_to_num(np.array(np.gradient(iso_image)))
-            Ix = np.sum(Ix, axis = 2)
-            Iy = np.sum(Iy, axis = 2)
+            Ix = np.sum(np.absolute(Ix), axis = 2)
+            Iy = np.sum(np.absolute(Iy), axis = 2)
         elif iso_image.ndim == 2:
             Ix, Iy = np.nan_to_num(np.array(np.gradient(iso_image)))
         else: #this should not happen
