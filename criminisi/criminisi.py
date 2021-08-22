@@ -105,7 +105,7 @@ class Inpainting:
         
         target_patch = Inpainting.get_patch_slice(target_pixel, psz)
         target_patch_data = working_image[target_patch]
-        target_patch_known = source_region[target_patch]
+        target_known = source_region[target_patch]
         
         for row in range(half_psz, working_image.shape[0]-half_psz-1):
             for col in range(half_psz, working_image.shape[1]-half_psz-1):
@@ -114,7 +114,7 @@ class Inpainting:
                     continue
                 
                 SSD = np.sum(
-                    ((target_patch_data - working_image[source_patch])[target_patch_known] ) **2
+                    ((target_patch_data - working_image[source_patch])[target_known] ) **2
                 )
                 if(SSD < bestErr):
                         bestErr = SSD
@@ -199,7 +199,7 @@ class Inpainting:
             
             target_pixel = boundary_list[highest_priority]
             target_patch = Inpainting.get_patch_list(target_pixel, psz)
-            target_patch_known = to_fill[tuple(target_patch)]
+            target_known = to_fill[tuple(target_patch)]
             
             source_patch = Inpainting.bestexemplar(working_image, to_fill, target_pixel, psz)
             
@@ -207,18 +207,18 @@ class Inpainting:
             to_fill[tuple(target_patch)] = False
             
             #Propagate confidence & isophote values
-            confidence[target_patch[0][target_patch_known], target_patch[1][target_patch_known]]  = \
+            confidence[target_patch[0][target_known], target_patch[1][target_known]]  = \
                 confidence[target_pixel]
-            Ix[target_patch[0][target_patch_known], target_patch[1][target_patch_known]] = \
-                Ix[source_patch[0][target_patch_known], source_patch[1][target_patch_known]]
-            Iy[target_patch[0][target_patch_known], target_patch[1][target_patch_known]] = \
-                Iy[source_patch[0][target_patch_known], source_patch[1][target_patch_known]]
-            total_gradient[target_patch[0][target_patch_known], target_patch[1][target_patch_known]] = \
-                total_gradient[source_patch[0][target_patch_known], source_patch[1][target_patch_known]]
+            Ix[target_patch[0][target_known], target_patch[1][target_known]] = \
+                Ix[source_patch[0][target_known], source_patch[1][target_known]]
+            Iy[target_patch[0][target_known], target_patch[1][target_known]] = \
+                Iy[source_patch[0][target_known], source_patch[1][target_known]]
+            total_gradient[target_patch[0][target_known], target_patch[1][target_known]] = \
+                total_gradient[source_patch[0][target_known], source_patch[1][target_known]]
             
             #Copy image data from source to target  
-            working_image[target_patch[0][target_patch_known], target_patch[1][target_patch_known]] = \
-                working_image[source_patch[0][target_patch_known], source_patch[1][target_patch_known]]
+            working_image[target_patch[0][target_known], target_patch[1][target_known]] = \
+                working_image[source_patch[0][target_known], source_patch[1][target_known]]
             
             if return_movie:
                 movie.append(Inpainting.flip_RB(np.copy(working_image)))
