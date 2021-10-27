@@ -105,6 +105,9 @@ class Inpainting:
         return np.array(confidence_list) 
     
     
+    #TODO: Parallelize this
+    # Could be done with joblib parallel, worth exploring others as well. 
+    
     def bestexemplar(working_image, to_fill, target_pixel, psz): 
         patchErr = 0.0
         bestErr = 1000000000.0 
